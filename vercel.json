@@ -1,0 +1,17 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "experimentalServices": {
+    "web": {
+      "entrypoint": "apps/web",
+      "framework": "nextjs",
+      "routePrefix": "/"
+    },
+    "api": {
+      "entrypoint": "apps/api",
+      "routePrefix": "/api"
+    }
+  },
+  "crons": [
+    { "path": "/api/cron/purge", "schedule": "0 4 * * *" }
+  ]
+}

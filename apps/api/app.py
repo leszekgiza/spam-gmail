@@ -1,41 +1,33 @@
-"""Vercel Cron: codzienne auto-czyszczenie skrzynki — hard-rules + grace period.
+"""FastAPI app dla serwisu 'api' (Vercel experimentalServices, routePrefix=/api).
 
-Uruchamiane przez Vercel Cron (patrz vercel.ts) o 4:00 UTC = 6:00 Warsaw (CEST).
-W czasie zimowym (CET) to 5:00 Warsaw — do akceptacji.
-
-Endpoint: GET/POST /api/cron/purge
-Header: Authorization: Bearer $CRON_SECRET (automatycznie wstrzykiwany przez Vercel Cron)
-
-Tryb podglądu: ?dry=1 (albo env DRY_RUN=1) — nic nie kasuje, zwraca plan.
+Request `/api/cron/purge` trafia tu z pełną ścieżką (zgodnie z docs Services).
 """
 from __future__ import annotations
 
-import json
 import os
-import sys
 import traceback
 from collections import Counter
 from datetime import datetime, timezone
-from http.server import BaseHTTPRequestHandler
-from pathlib import Path
-from urllib.parse import parse_qs, urlparse
 
-# Dodaj katalog api/ do sys.path (o jeden wyżej), żeby można było `from _lib import ...`
-_HERE = Path(__file__).resolve().parent
-sys.path.insert(0, str(_HERE.parent))
+from fastapi import FastAPI, Header, HTTPException, Request
 
-from _lib.rules import (  # noqa: E402
-    GRACE_PERIOD_DAYS,
-    apply_rules,
-    is_in_grace_period,
-)
-from _lib.gmail_client import (  # noqa: E402
+from _lib.rules import GRACE_PERIOD_DAYS, apply_rules, is_in_grace_period
+from _lib.gmail_client import (
     get_service,
     iter_metadata,
     list_message_ids,
     trash_messages,
 )
-from _lib.db import connect  # noqa: E402
+from _lib.db import connect
+
+app = FastAPI(title="spam-gmail-api")
+
+
+def _authorized(authorization: str | None) -> bool:
+    expected = os.getenv("CRON_SECRET")
+    if not expected:
+        return True  # dev / brak sekretu
+    return authorization == f"Bearer {expected}"
 
 
 def _log_feedback(cur, email_id: str, rule_id: str, action: str) -> None:
@@ -77,7 +69,6 @@ def run_purge(dry_run: bool, days_window: int = 30) -> dict:
             rule_hits[f"DEL:{hit.rule_id}"] += 1
             continue
 
-        # keep (transactional) — grace period check
         if meta.received_at is None:
             kept_protected += 1
             continue
@@ -91,7 +82,7 @@ def run_purge(dry_run: bool, days_window: int = 30) -> dict:
         else:
             kept_protected += 1
 
-    result = {
+    result: dict = {
         "scanned": len(ids),
         "deletable": len(to_trash_spam),
         "grace_expired": len(to_trash_grace),
@@ -100,8 +91,7 @@ def run_purge(dry_run: bool, days_window: int = 30) -> dict:
         "rule_hits": dict(rule_hits.most_common()),
         "dry_run": dry_run,
         "sample_deletable": [
-            {"rule": rid, "subject": subj}
-            for _, rid, subj in to_trash_spam[:5]
+            {"rule": rid, "subject": subj} for _, rid, subj in to_trash_spam[:5]
         ],
         "sample_grace": [
             {"rule": rid, "age_days": age, "subject": subj}
@@ -128,42 +118,26 @@ def run_purge(dry_run: bool, days_window: int = 30) -> dict:
     return result
 
 
-def _authorized(headers: dict) -> bool:
-    """Vercel Cron wstrzykuje Authorization: Bearer $CRON_SECRET."""
-    expected = os.getenv("CRON_SECRET")
-    if not expected:
-        # Brak sekretu = endpoint publiczny (nie zalecane, tylko dev)
-        return True
-    auth = headers.get("authorization") or headers.get("Authorization") or ""
-    return auth == f"Bearer {expected}"
+@app.get("/api/health")
+def health() -> dict:
+    return {"ok": True, "service": "spam-gmail-api"}
 
 
-class handler(BaseHTTPRequestHandler):
-    def _respond(self, status: int, body: dict) -> None:
-        self.send_response(status)
-        self.send_header("Content-Type", "application/json; charset=utf-8")
-        self.end_headers()
-        self.wfile.write(json.dumps(body, ensure_ascii=False, default=str).encode("utf-8"))
-
-    def _run(self) -> None:
-        headers = {k.lower(): v for k, v in self.headers.items()}
-        if not _authorized(headers):
-            self._respond(401, {"error": "unauthorized"})
-            return
-        qs = parse_qs(urlparse(self.path).query)
-        dry = (qs.get("dry", ["0"])[0] == "1") or (os.getenv("DRY_RUN") == "1")
-        try:
-            result = run_purge(dry_run=dry)
-            self._respond(200, result)
-        except Exception as e:
-            self._respond(500, {
-                "error": str(e),
-                "type": type(e).__name__,
-                "traceback": traceback.format_exc(),
-            })
-
-    def do_GET(self) -> None:
-        self._run()
-
-    def do_POST(self) -> None:
-        self._run()
+@app.get("/api/cron/purge")
+@app.post("/api/cron/purge")
+def purge(
+    request: Request,
+    dry: int = 0,
+    authorization: str | None = Header(default=None),
+) -> dict:
+    if not _authorized(authorization):
+        raise HTTPException(status_code=401, detail="unauthorized")
+    dry_run = bool(dry) or os.getenv("DRY_RUN") == "1"
+    try:
+        return run_purge(dry_run=dry_run)
+    except Exception as e:
+        return {
+            "error": str(e),
+            "type": type(e).__name__,
+            "traceback": traceback.format_exc(),
+        }
