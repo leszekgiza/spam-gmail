@@ -40,15 +40,20 @@ KEEP_DOMAIN_PATTERNS: list[tuple[re.Pattern[str], str]] = [
 ]
 
 KEEP_SUBJECT_PATTERNS: list[tuple[re.Pattern[str], str]] = [
-    (re.compile(r"\b(faktur|invoice|rachunek)\b", re.I), "kw_invoice_subject"),
+    # Stem matching — bez trailing \b, bo "faktura", "fakturę", "fakturze" muszą pasować
+    (re.compile(r"\bfaktur", re.I), "kw_invoice_subject"),
+    (re.compile(r"\b(invoice|receipt|paragon|rachunek)", re.I), "kw_invoice_en"),
     (re.compile(r"\btermin\s+p[łl]atn", re.I), "kw_payment_due"),
-    (re.compile(r"\bdo\s+zap[łl]aty\b", re.I), "kw_to_pay"),
+    (re.compile(r"\bdo\s+zap[łl]aty", re.I), "kw_to_pay"),
     (re.compile(r"potwierdzenie\s+p[łl]atno", re.I), "kw_payment_confirmation"),
-    (re.compile(r"\bKupi[łl]e[śs]\s+i\s+zap[łl]aci[łl]e[śs]\b", re.I), "kw_allegro_purchase"),
+    (re.compile(r"\bkupi[łl]e[śs]\s+i\s+zap[łl]aci[łl]e[śs]", re.I), "kw_allegro_purchase"),
+    (re.compile(r"\bzam[oó]wieni", re.I), "kw_order"),
     (re.compile(r"delivery\s+status\s+notification.*fail", re.I), "kw_bounce"),
     (re.compile(r"security\s+(update|incident|alert|breach)", re.I), "kw_security_alert"),
     (re.compile(r"failed\s+(production\s+)?deployment", re.I), "kw_deploy_fail"),
-    (re.compile(r"\bzmiana\s+regulaminu\b|aktualizuj.*dokumenty", re.I), "kw_tos_change"),
+    (re.compile(r"\bzmiana\s+regulaminu|aktualizuj.*dokumenty", re.I), "kw_tos_change"),
+    (re.compile(r"\bPIT\s+(roczn|11|37|36|28)", re.I), "kw_pit_tax"),
+    (re.compile(r"\bg[łl]osowani|\bkarta\s+do\s+g[łl]osowania", re.I), "kw_voting"),
 ]
 
 # Sender-from patterns (for senders like noreply@business-updates.facebook.com
