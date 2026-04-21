@@ -20,3 +20,4 @@ models/*.joblib
 !models/.gitkeep
 
 .vercel
+.env*.local
