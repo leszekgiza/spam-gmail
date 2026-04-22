@@ -13,7 +13,12 @@ from typing import Any
 import joblib
 import pandas as pd
 
-_MODEL_DIR = Path(__file__).resolve().parents[4] / "models"
+# Na Vercelu: apps/web/models/. Lokalnie z repo root: models/
+# Próbujemy oba — apps/web/models ma priorytet (Vercel rootDir)
+_HERE = Path(__file__).resolve().parent  # _lib/
+_WEB_MODELS = _HERE.parents[1] / "models"  # apps/web/models
+_ROOT_MODELS = _HERE.parents[3] / "models"  # repo_root/models
+_MODEL_DIR = _WEB_MODELS if _WEB_MODELS.exists() else _ROOT_MODELS
 _LOADED: dict[str, Any] = {}
 
 KEYWORD_PATTERNS: dict[str, re.Pattern[str]] = {
