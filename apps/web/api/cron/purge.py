@@ -41,6 +41,19 @@ from _lib.scorer import score_email  # noqa: E402
 ML_SPAM_THRESHOLD = 0.85  # Tylko p > 0.85 → auto-delete. Reszta zostaje.
 
 
+def _ensure_raw_email(cur, meta) -> None:
+    """Upsert raw_emails — potrzebny przed feedback (FK constraint)."""
+    cur.execute(
+        """
+        INSERT INTO raw_emails (id, thread_id, sender, sender_domain, subject, snippet, labels, received_at)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        ON CONFLICT (id) DO NOTHING
+        """,
+        (meta.id, meta.thread_id, meta.sender, meta.sender_domain,
+         meta.subject, meta.snippet, meta.labels, meta.received_at),
+    )
+
+
 def _log_feedback(cur, email_id: str, rule_id: str, action: str) -> None:
     cur.execute(
         """
@@ -64,12 +77,14 @@ def run_purge(dry_run: bool, days_window: int = 30) -> dict:
     to_trash_spam: list[tuple[str, str, str]] = []
     to_trash_grace: list[tuple[str, str, str, int]] = []
     to_trash_ml: list[tuple[str, str, str, float]] = []
+    meta_map: dict = {}  # id → EmailMeta for DB upsert
     rule_hits: Counter = Counter()
     kept_protected = 0
     kept_unmatched = 0
     ml_skipped = 0  # below threshold
 
     for meta in iter_metadata(service, ids):
+        meta_map[meta.id] = meta
         hit = apply_rules(meta.sender, meta.sender_domain, meta.subject)
         is_unread = "UNREAD" in meta.labels
 
@@ -147,6 +162,10 @@ def run_purge(dry_run: bool, days_window: int = 30) -> dict:
     if all_to_trash:
         trash_messages(service, all_to_trash)
         with connect() as conn, conn.cursor() as cur:
+            # Ensure raw_emails exist before feedback (FK)
+            for mid in all_to_trash:
+                if mid in meta_map:
+                    _ensure_raw_email(cur, meta_map[mid])
             for mid, rid, _ in to_trash_spam:
                 _log_feedback(cur, mid, rid, "deletable")
             for mid, rid, _, _ in to_trash_grace:

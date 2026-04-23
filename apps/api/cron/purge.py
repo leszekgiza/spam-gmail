@@ -36,6 +36,22 @@ from _lib.gmail_client import (  # noqa: E402
     trash_messages,
 )
 from _lib.db import connect  # noqa: E402
+from _lib.scorer import score_email  # noqa: E402
+
+ML_SPAM_THRESHOLD = 0.85  # Tylko p > 0.85 → auto-delete. Reszta zostaje.
+
+
+def _ensure_raw_email(cur, meta) -> None:
+    """Upsert raw_emails — potrzebny przed feedback (FK constraint)."""
+    cur.execute(
+        """
+        INSERT INTO raw_emails (id, thread_id, sender, sender_domain, subject, snippet, labels, received_at)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        ON CONFLICT (id) DO NOTHING
+        """,
+        (meta.id, meta.thread_id, meta.sender, meta.sender_domain,
+         meta.subject, meta.snippet, meta.labels, meta.received_at),
+    )
 
 
 def _log_feedback(cur, email_id: str, rule_id: str, action: str) -> None:
@@ -60,15 +76,34 @@ def run_purge(dry_run: bool, days_window: int = 30) -> dict:
 
     to_trash_spam: list[tuple[str, str, str]] = []
     to_trash_grace: list[tuple[str, str, str, int]] = []
+    to_trash_ml: list[tuple[str, str, str, float]] = []
+    meta_map: dict = {}  # id → EmailMeta for DB upsert
     rule_hits: Counter = Counter()
     kept_protected = 0
     kept_unmatched = 0
+    ml_skipped = 0  # below threshold
 
     for meta in iter_metadata(service, ids):
+        meta_map[meta.id] = meta
         hit = apply_rules(meta.sender, meta.sender_domain, meta.subject)
         is_unread = "UNREAD" in meta.labels
 
         if hit is None:
+            # No hard-rule — try ML scorer
+            result = score_email(
+                meta.sender_domain, meta.subject, meta.snippet, meta.received_at,
+            )
+            if result is not None:
+                p_spam, model_ver = result
+                if p_spam >= ML_SPAM_THRESHOLD:
+                    to_trash_ml.append((
+                        meta.id, f"ml:{model_ver}", meta.subject[:70] if meta.subject else "", p_spam,
+                    ))
+                    rule_hits[f"ML:{model_ver}"] += 1
+                    continue
+                else:
+                    ml_skipped += 1
+                    continue
             kept_unmatched += 1
             continue
 
@@ -93,15 +128,22 @@ def run_purge(dry_run: bool, days_window: int = 30) -> dict:
 
     result = {
         "scanned": len(ids),
-        "deletable": len(to_trash_spam),
+        "deletable_rules": len(to_trash_spam),
+        "deletable_ml": len(to_trash_ml),
         "grace_expired": len(to_trash_grace),
+        "ml_below_threshold": ml_skipped,
         "protected_by_rule": kept_protected,
-        "unmatched_passed_through": kept_unmatched,
+        "unmatched_no_model": kept_unmatched,
         "rule_hits": dict(rule_hits.most_common()),
+        "ml_threshold": ML_SPAM_THRESHOLD,
         "dry_run": dry_run,
-        "sample_deletable": [
+        "sample_deletable_rules": [
             {"rule": rid, "subject": subj}
             for _, rid, subj in to_trash_spam[:5]
+        ],
+        "sample_deletable_ml": [
+            {"rule": rid, "p_spam": round(p, 3), "subject": subj}
+            for _, rid, subj, p in sorted(to_trash_ml, key=lambda x: -x[3])[:5]
         ],
         "sample_grace": [
             {"rule": rid, "age_days": age, "subject": subj}
@@ -112,14 +154,24 @@ def run_purge(dry_run: bool, days_window: int = 30) -> dict:
     if dry_run:
         return result
 
-    all_to_trash = [t[0] for t in to_trash_spam] + [t[0] for t in to_trash_grace]
+    all_to_trash = (
+        [t[0] for t in to_trash_spam]
+        + [t[0] for t in to_trash_grace]
+        + [t[0] for t in to_trash_ml]
+    )
     if all_to_trash:
         trash_messages(service, all_to_trash)
         with connect() as conn, conn.cursor() as cur:
+            # Ensure raw_emails exist before feedback (FK)
+            for mid in all_to_trash:
+                if mid in meta_map:
+                    _ensure_raw_email(cur, meta_map[mid])
             for mid, rid, _ in to_trash_spam:
                 _log_feedback(cur, mid, rid, "deletable")
             for mid, rid, _, _ in to_trash_grace:
                 _log_feedback(cur, mid, rid, "grace_expired")
+            for mid, rid, _, p in to_trash_ml:
+                _log_feedback(cur, mid, rid, f"ml_p{p:.2f}")
             conn.commit()
         result["trashed"] = len(all_to_trash)
     else:
