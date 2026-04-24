@@ -21,3 +21,4 @@ models/*.joblib
 
 .vercel
 .env*.local
+logs/
