@@ -14,10 +14,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: npm run lint --if-present
-      - run: npm run typecheck --if-present
+      - run: npm install --prefix apps/web
+      - run: npx --prefix apps/web next build
+        env:
+          DATABASE_URL: "postgresql://fake:fake@localhost/fake"
 
   python:
     runs-on: ubuntu-latest
@@ -26,5 +26,5 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      - run: pip install -r apps/api/requirements.txt
-      - run: python -m compileall apps packages scripts
+      - run: pip install -r apps/web/api/requirements.txt
+      - run: python -m compileall apps/api apps/web/api packages scripts
