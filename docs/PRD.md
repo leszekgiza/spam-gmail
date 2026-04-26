@@ -1,65 +1,136 @@
-# PRD — SPAM Gmail
+# PRD - SPAM Gmail
 
 ## Problem
 
-Leszek dostaje codziennie dużą liczbę maili, z czego znacząca część to spam / newslettery / transakcyjne śmieci. Ręczne sprzątanie rano zajmuje czas, a "zalegający" inbox obciąża poznawczo przez cały dzień.
+Inbox zawiera mieszanke waznych maili, rzeczy do przeczytania pozniej, newsletterow, powiadomien i zwyklych smieci. Reczne sprzatanie rano zabiera czas i obciaza poznawczo.
 
 ## Cel produktu
 
-Autonomiczny asystent, który codziennie o 6:00 przygotowuje **czystą skrzynkę** — zostają tylko maile wymagające uwagi. System uczy się na podstawie rzeczywistych decyzji Leszka (co kasuje, co czyta, co zostawia, co archiwizuje).
+Zbudowac jednoosobowego asystenta Gmail, ktory:
+
+- automatycznie usuwa z pola widzenia oczywiste smieci,
+- nie gubi waznych wiadomosci,
+- pozwala szybko cofnac falszywe decyzje,
+- uczy sie na rzeczywistych decyzjach uzytkownika.
+
+## Domyslny tryb produktu
+
+Domyslny tryb to **Recoverable Auto-Trash**.
+
+To znaczy:
+
+- system moze automatycznie przenosic wybrane maile do Gmail Trash,
+- Gmail Trash jest buforem bezpieczenstwa i miejscem odzyskania,
+- rano uzytkownik moze przejrzec decyzje AI i je skorygowac.
+
+## Co oznacza Shadow Mode
+
+`Shadow Mode` to tryb, w ktorym system:
+
+- zapisuje przewidywania,
+- nic nie zmienia w Gmailu,
+- sluzy tylko do walidacji nowego modelu albo nowych regul.
+
+`Shadow Mode` nie jest glownym trybem wdrozenia dla tego produktu. To tryb diagnostyczny.
+
+## Kluczowe pojecia produktu
+
+### Restore
+
+`Restore` oznacza:
+
+- przywroc mail z Gmail Trash do Inbox,
+- zapisz jawny ludzki sygnal, ze decyzja AI byla bledna,
+- uzyj tego jako feedback `keep`.
+
+### Confirm
+
+`Confirm` oznacza:
+
+- uzytkownik potwierdza, ze AI miala racje,
+- mail zostaje w Gmail Trash,
+- brak dodatkowej zmiany w Gmailu,
+- zapisujemy jawny ludzki sygnal poprawnej decyzji AI jako feedback `spam`.
+
+`Confirm` nie oznacza trwalego skasowania. To akceptacja decyzji AI.
+
+## Ground truth
+
+Nie kazdy mail w `TRASH` oznacza spam. Produkt musi rozrozniac co najmniej 4 klasy:
+
+1. `deletable_now`
+   Mail niechciany juz teraz: promo, social noise, newsletter-smiec, oczywisty spam.
+2. `handled_done`
+   Mail byl przydatny, ale po obsluzeniu nie jest juz potrzebny w Inbox.
+3. `keep_critical`
+   Mail wazny lub ryzykowny do utraty: finanse, prawo, security, urzedy, istotne transakcje.
+4. `read_later`
+   Mail, ktory bywa czytany wybiorczo i nie powinien automatycznie trafic do kosza.
+
+## Zasady treningu
+
+- `deletable_now` moze byc uczone jako `spam`
+- `keep_critical` moze byc uczone jako `keep`
+- `handled_done` nie moze byc automatycznie traktowane jako `spam`
+- `read_later` nie powinno byc domyslnie traktowane jako `spam`
+- do treningu po rolloutcie trafiaja tylko jawne sygnaly ludzkie oraz ostroznie przygotowany bootstrap
 
 ## Success metrics
 
-- **Precision ≥ 95%** na klasyfikacji `spam` (maksymalnie 5% false positive — czyli ważny mail nigdy nie przepada)
-- **Recall ≥ 80%** na `spam` (80% śmieci wyłapanych)
-- **Czas porannego przeglądu < 30 sekund** (1 klik = posprzątane)
-- **Zero utraconych maili** — 7-dniowe okno undo + audit log
-- Po 4 tygodniach: tryb `AUTO_DELETE` włączony, zero ręcznej interwencji
+- precision dla auto-trash >= 95%
+- falszywe auto-trash sa odzyskiwalne z Gmail Trash
+- poranny review < 60 sekund
+- 100% automatycznych akcji ma audit trail
+- model nie uczy sie na wlasnych decyzjach bez ludzkiego potwierdzenia
 
-## Fazy wdrożenia
+## Zakres biezacej wersji
 
-### Faza 0 — Bootstrap (jednorazowo)
-Pobranie 12 miesięcy historii skrzynki, auto-labeling jako training set:
-- w koszu / w spamie → `spam`
-- przeczytane + zostawione w inbox > 30 dni → `keep` (ważne)
-- przeczytane i zarchiwizowane → `keep` (ważne, ale obsłużone)
-- nieprzeczytane > 14 dni + nie skasowane → ignorowane
+### In scope
 
-### Faza 1 — SHADOW_MODE (tydzień 1) ⚠️
-**Model TYLKO obserwuje — nie wykonuje żadnych akcji na skrzynce.**
-- Cron 03:00: pobiera maile do DB
-- Cron 06:00: klasyfikuje i zapisuje **prognozę** (do tabeli `decisions`), ale NIE archiwizuje, NIE kasuje, NIE zmienia labeli
-- Dodatkowo zapisuje `observations` — co Leszek sam zrobił z mailem (skasował / przeczytał / zostawił / zarchiwizował)
-- Na koniec tygodnia: porównanie prognoz modelu z rzeczywistymi decyzjami Leszka → raport accuracy / precision / recall
-- Cel: potwierdzić że model rozumie wzorzec przed nadaniem mu uprawnień
+- single-user app
+- Gmail metadata: sender, domain, subject, snippet
+- auto-trash dla bezpiecznych przypadkow
+- review queue z `Restore` i `Confirm`
+- feedback loop oparty o jawne decyzje uzytkownika
 
-### Faza 2 — ASSISTED_MODE (tydzień 2-4)
-Model archiwizuje spam do labela `_AI_TRASH`, ale nie kasuje. Leszek rano zatwierdza (1 klik). Każda korekta → training set. Retrening tygodniowy.
+### Out of scope
 
-### Faza 3 — AUTO_MODE (po ≥ 95% precision na korektach z 2 kolejnych tygodni)
-Cron kasuje automatycznie (z 7-dniowym oknem recovery). WhatsApp: dzienny raport co skasowano.
+- pelne czytanie body maili
+- odpisywanie na maile
+- multi-user
+- mobile native app
+- kalendarz / taski
 
-## Non-goals
-
-- Czytanie treści maili (tylko subject + 200-znakowy snippet + sender)
-- Odpowiadanie na maile w imieniu użytkownika
-- Obsługa wielu skrzynek / wielu użytkowników (single-user app)
-- Mobilna aplikacja natywna (web wystarczy)
-- Integracja z kalendarzem / taskami
-- Trenowanie własnego modelu języka (używamy Haiku 4.5 + sklearn)
-
-## Stakeholders
-
-- **Użytkownik:** Leszek Giza (jedyny)
-- **Developer:** Claude Code + Leszek
-- **Hosting:** Vercel (darmowy plan)
-
-## Ryzyka
+## Ryzyka i mitygacje
 
 | Ryzyko | Mitygacja |
 |--------|-----------|
-| Skasowany ważny mail | 7-dniowy label `_AI_TRASH` przed faktycznym `trash.delete` |
-| Wyciek OAuth tokena | Tylko Vercel env vars, brak tokena w repo, rotacja co 90 dni |
-| Halucynacja Haiku | LLM używany tylko dla `confidence < 0.7`, każda decyzja w `audit_log` z uzasadnieniem |
-| Neon free tier pełen | Retencja 12 mies. + tylko snippet (200 zn.), nie pełne body |
-| Vercel cron padnie | Sentry alerty + WhatsApp notification o braku aktywności 24h |
+| Wazny mail trafia do Trash | `Restore`, audit log, ostroznosc w danych treningowych |
+| Model myli `handled_done` ze spamem | 4-klasowa taksonomia ground truth |
+| System uczy sie na swoich decyzjach | `feedback` tylko dla jawnych sygnalow ludzkich |
+| Architektura rozjezdza sie z implementacja | jeden runtime, jedna kopia regul, jedna semantyka tabel |
+
+## Roadmap produktu
+
+### Etap 1 - Contract Closure
+
+- ustalic jeden runtime
+- ustalic jedna semantyke `decisions`, `observations`, `feedback`, `audit_log`
+- ustalic semantyke `Restore` i `Confirm`
+
+### Etap 2 - Correct Review Flow
+
+- prawdziwe `Restore` w Gmailu
+- review queue oparte o `decisions`, nie o historyczne `feedback`
+- audit kazdej automatycznej akcji
+
+### Etap 3 - Data Quality i Retraining
+
+- poprawny bootstrap bez `trash = spam`
+- trening tylko na danych, ktore wolno traktowac jako ground truth
+- raporty precision / recall
+
+### Etap 4 - Optional Shadow Validation i Further Automation
+
+- `Shadow Mode` tylko do testu nowych modeli
+- ewentualny auto-purge dopiero po stabilnych metrykach

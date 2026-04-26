@@ -1,74 +1,57 @@
-# Backlog — SPAM Gmail
+# Backlog - SPAM Gmail
 
-Priorytety: **M** = Must, **S** = Should, **C** = Could, **W** = Won't (for now).
+Priorytety: `M` = Must, `S` = Should, `C` = Could.
 
-## Epic 1: Foundation (Sesja 1) — IN PROGRESS
+## Epic 1 - Contract Closure
 
-- [x] **M** Monorepo scaffold (Turborepo + Next.js + Python)
-- [x] **M** `vercel.ts` z cron schedule
-- [x] **M** GitHub repo `leszekgiza/spam-gmail` (public)
-- [x] **M** GitHub Actions CI (lint + typecheck + Python compile)
-- [x] **M** Dokumentacja lekka: PRD, HLD, backlog
-- [ ] **M** Neon DB provisioning + `migrate.sql` zaaplikowany
-- [ ] **M** Vercel link + first deploy (placeholder)
-- [ ] **S** Threat model + privacy doc
-- [ ] **S** ADR-0001 (stack), ADR-0002 (archive-not-delete)
+- [x] `M` Ustalic, ze domyslny tryb produktu to Recoverable Auto-Trash
+- [x] `M` Zdefiniowac `Shadow Mode` jako tryb diagnostyczny, a nie domyslny rollout
+- [x] `M` Zdefiniowac `Confirm` i `Restore`
+- [x] `M` Zdefiniowac, ze nie kazdy `TRASH` oznacza `spam`
+- [x] `M` Wybrac jeden runtime: `apps/web`
+- [x] `M` Udokumentowac kontrakt architektury i danych
 
-## Epic 2: Gmail integracja (Sesja 2)
+## Epic 2 - Runtime Consolidation
 
-- [ ] **M** Google Cloud project + OAuth client
-- [ ] **M** `packages/gmail/auth.py` — OAuth flow + refresh token
-- [ ] **M** `packages/gmail/operations.py` — fetch, archive, label, batch delete
-- [ ] **M** `scripts/bootstrap_history.py` — pobierz 12 mies., auto-labeling
-- [ ] **M** Migracja bootstrap → Neon (`raw_emails` + `feedback` source='bootstrap')
-- [ ] **S** Rate limiting / retry logic (Gmail API quota)
+- [ ] `M` Usunac `apps/api` z kanonicznej sciezki deploymentu
+- [ ] `M` Miec jedna kopie regul i klasyfikacji w `packages/*`
+- [ ] `M` Usunac duplikaty `_lib/rules.py`, `_lib/gmail_client.py`, `_lib/db.py`
+- [ ] `S` Uporzadkowac nazwy endpointow cron, zeby odpowiadaly faktycznej roli
 
-## Epic 3: SHADOW_MODE — tydzień 1 obserwacji (Sesja 3)
+## Epic 3 - Correct Review Flow
 
-- [ ] **M** `packages/classifier/features.py` — feature engineering
-  - sender domain, czy kontakt w książce, średnia historia z nadawcą
-  - keywords w subject (regex + TF-IDF na snippet)
-  - time of day, day of week
-  - is_newsletter (unsubscribe header), is_transactional
-- [ ] **M** `packages/classifier/model.py` — sklearn LogisticRegression + GradientBoosting
-- [ ] **M** `packages/classifier/train.py` — trenuj na bootstrap
-- [ ] **M** `cron/classify.py` — w shadow mode: tylko INSERT decisions
-- [ ] **M** `cron/observe.py` (23:00) — zapisz co Leszek zrobił z każdym mailem
-- [ ] **M** `scripts/weekly_report.py` — porównaj decisions vs observations
-- [ ] **S** Raport na WhatsApp w niedzielę: "Model miał accuracy X% w tym tygodniu"
+- [ ] `M` Cron ma zapisywac `decisions`, nie training labels
+- [ ] `M` Cron ma logowac automatyczne akcje do `audit_log`
+- [ ] `M` `GET /api/review` ma czytac pending decisions
+- [ ] `M` `POST restore` ma naprawde przywracac mail w Gmailu
+- [ ] `M` `POST confirm` ma zapisywac jawne potwierdzenie ludzkie
+- [ ] `M` Dodac auth do review UI/API
 
-## Epic 4: ASSISTED_MODE + Web UI (Sesja 4)
+## Epic 4 - Ground Truth i Training Data
 
-- [ ] **M** `packages/classifier/llm.py` — Haiku 4.5 dla confidence < 0.7
-- [ ] **M** `cron/classify.py` — archiwizacja do `_AI_TRASH` gdy `SHADOW_MODE=false`
-- [ ] **M** `apps/web/app/page.tsx` — lista decyzji + checkboxy + 3 przyciski
-- [ ] **M** `apps/api/review/confirm.py` — batch delete zaznaczonych
-- [ ] **M** `apps/api/review/restore.py` — restore + feedback INSERT
-- [ ] **M** WhatsApp notification po cronie
-- [ ] **S** Pokaż w UI: decyzja + confidence + (jeśli LLM) reasoning
-- [ ] **S** Autentykacja (Sign in with Vercel? Email link?)
-- [ ] **C** Dark mode / accessibility
+- [ ] `M` Wdrozyc 4-klasowa taksonomie ground truth
+- [ ] `M` Rozdzielic `deletable_now` od `handled_done`
+- [ ] `M` Wykluczyc `handled_done` i `read_later` z prostego binarnego `trash = spam`
+- [ ] `M` Trening ma korzystac tylko z curated bootstrap + explicit human feedback
+- [ ] `S` Dodac weekly evaluation precision / recall / restore-rate
 
-## Epic 5: Feedback loop + retrening (Sesja 5)
+## Epic 5 - Safety i Operations
 
-- [ ] **M** `scripts/retrain.py` — cotygodniowy retrening
-- [ ] **M** Eval harness — accuracy/precision/recall per model version
-- [ ] **M** Promocja modelu tylko jeśli ≥ baseline (BLUE/GREEN)
-- [ ] **M** Kill switch test: ustawienie `EMERGENCY_STOP=true` natychmiast zatrzymuje cron
-- [ ] **S** Vercel Analytics — dashboard metryk
-- [ ] **S** Sentry integracja — alerty na błędy
-- [ ] **C** A/B test: Haiku vs Sonnet na niepewnych
+- [ ] `M` Kazda automatyczna akcja musi miec audit trail
+- [ ] `M` Naprawic lokalne i produkcyjne zarzadzanie sekretami
+- [ ] `S` Dodac monitoring / alerting
+- [ ] `S` Dodac diagnostyczny `Shadow Mode` dla nowych modeli
 
-## Epic 6: AUTO_MODE (Sesja 6+)
+## Epic 6 - Later Automation
 
-- [ ] **M** Decyzja przejścia w `AUTO_DELETE=true` (po 2 tyg. ≥95% precision)
-- [ ] **M** `cron/purge.py` — trwałe kasowanie po 7 dniach
-- [ ] **S** Dzienny WhatsApp: "Dziś skasowano N maili, X false positives"
+- [ ] `C` Dodac LLM fallback tylko dla naprawde niepewnych przypadkow
+- [ ] `C` Dodac weekly retraining automation
+- [ ] `C` Rozwazyc osobny auto-purge dopiero po stabilnych metrykach
 
-## Backlog — Won't (dla tego projektu)
+## Out of Scope
 
-- **W** Multi-user support
-- **W** Mobile app
-- **W** Kalendar / Tasks integracja
-- **W** Własny fine-tuned LLM
-- **W** Czytanie pełnego body maili
+- multi-user
+- mobile native app
+- pelne body maili
+- odpisywanie na maile
+- kalendarz / tasks

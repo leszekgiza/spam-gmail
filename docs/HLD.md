@@ -1,125 +1,122 @@
-# HLD — SPAM Gmail
+# HLD - SPAM Gmail
 
-## Architektura
+## Canonical architecture
 
-```mermaid
-flowchart TB
-    Gmail[Gmail API]
-    Neon[(Neon Postgres)]
-    Vercel[Vercel Functions<br/>Fluid Compute Python 3.13]
-    Gateway[Vercel AI Gateway<br/>Claude Haiku 4.5]
-    Blob[Vercel Blob<br/>ML model artifacts]
-    Web[Next.js Web<br/>spamgmail.vercel.app]
-    User((Leszek))
-    WhatsApp[WhatsApp MCP]
+Od 2026-04-24 kanoniczna architektura jest nastepujaca:
 
-    subgraph Crons [Vercel Cron]
-        Fetch["03:00 fetch.py"]
-        Classify["06:00 classify.py"]
-        Purge["06:30 purge.py"]
-    end
+| Obszar | Kanoniczna lokalizacja | Rola |
+|--------|-------------------------|------|
+| Web UI | `apps/web/app` | poranny review |
+| Review API | `apps/web/app/api` | kolejka review i akcje uzytkownika |
+| Python cron functions | `apps/web/api` | Gmail automation |
+| Shared Python modules | `packages/*` | jedna kopia regul i logiki wspolnej |
+| Legacy runtime | `apps/api` | do wycofania z aktywnej sciezki deploymentu |
 
-    Fetch -->|pobierz nowe| Gmail
-    Fetch -->|INSERT raw_emails| Neon
+## Zasady architektoniczne
 
-    Classify -->|SELECT new| Neon
-    Classify -->|fast classify| Blob
-    Classify -.->|uncertain| Gateway
-    Classify -->|INSERT decisions| Neon
-    Classify -->|archive to _AI_TRASH| Gmail
-    Classify -->|notify| WhatsApp
+1. Jest jeden runtime produkcyjny: `apps/web`.
+2. Jest jedna kanoniczna kopia regul i klasyfikacji: `packages/*`.
+3. `apps/api` nie jest miejscem na nowy kod i ma zostac wygaszony.
+4. Review UI i cron musza operowac na tym samym modelu danych.
 
-    Purge -->|labels>7d| Gmail
-    Purge -->|INSERT audit_log| Neon
+## Logical flow
 
-    User --> Web
-    Web -->|review/confirm/restore| Neon
-    Web -->|delete/restore| Gmail
-    Web -->|feedback| Neon
-```
+### 1. Decision pass
 
-## Flow: dzień typowy (Faza 2 — ASSISTED_MODE)
+- cron pobiera maile z Gmaila
+- zapisuje snapshot do `raw_emails`
+- hard-rules i model ML podejmuja decyzje
+- decyzja trafia do `decisions`
+- jesli decyzja to auto-trash, akcja trafia do `audit_log` i jest wykonywana w Gmailu
 
-```mermaid
-sequenceDiagram
-    participant C as Cron
-    participant G as Gmail
-    participant DB as Neon
-    participant M as Klasyfikator
-    participant W as WhatsApp
-    participant U as Leszek
-    participant UI as Web UI
+### 2. Morning review
 
-    C->>G: 03:00 fetch new messages
-    G-->>DB: raw_emails INSERT
+- UI pobiera tylko te decyzje, ktore wymagaja review albo nie maja jeszcze jawnego feedbacku
+- `Restore` przywraca mail do Inbox i zapisuje ludzki feedback `keep`
+- `Confirm` nie zmienia Gmaila, ale zapisuje ludzki feedback `spam`
 
-    C->>DB: 06:00 SELECT new emails
-    DB-->>M: batch
-    M->>M: fast classify (sklearn)
-    alt confidence < 0.7
-        M->>Gateway: Haiku 4.5 (z prompt cache)
-        Gateway-->>M: decision + reasoning
-    end
-    M-->>DB: decisions INSERT
-    M->>G: archive spam → _AI_TRASH label
-    M->>W: "X maili do przeglądu"
+### 3. Learning loop
 
-    U->>UI: otwiera spamgmail.vercel.app
-    UI->>DB: SELECT today's decisions
-    U->>UI: zaznacza false positives + klik "Confirm"
-    UI->>G: restore zaznaczone + delete reszta
-    UI->>DB: feedback INSERT (training set)
-```
+- trening korzysta z curated bootstrap + explicit human feedback
+- automatyczne akcje systemu nie sa same w sobie training labels
 
-## Flow: Faza 1 — SHADOW_MODE (tydzień 1)
+## Data contract
 
-```mermaid
-sequenceDiagram
-    participant C as Cron
-    participant G as Gmail
-    participant DB as Neon
-    participant M as Klasyfikator
-    participant U as Leszek
+| Tabela | Znaczenie |
+|--------|-----------|
+| `raw_emails` | snapshot metadanych Gmail potrzebny do klasyfikacji i review |
+| `decisions` | kazda decyzja AI/systemu przed lub w trakcie wykonania akcji |
+| `observations` | pasywna obserwacja finalnego stanu skrzynki; material diagnostyczny, nie jawny feedback |
+| `feedback` | tylko jawne sygnaly ludzkie, np. `restore`, `confirm`, reczne oznaczenie |
+| `audit_log` | kazda automatyczna akcja wykonana przez system na Gmailu |
 
-    C->>G: 03:00 fetch new
-    G-->>DB: raw_emails
+## Semantyka tabel
 
-    C->>M: 06:00 klasyfikuj
-    M-->>DB: decisions INSERT (tylko prognoza)
-    Note over M,G: Żadnych akcji na Gmailu!
+### `decisions`
 
-    U->>G: ręcznie kasuje / czyta / zostawia
+Powinna zawierac:
 
-    C->>G: 23:00 observation sweep
-    G-->>DB: observations INSERT (final_state)
+- decyzje modelu lub hard-rule,
+- confidence,
+- model version / rule id,
+- informacje, czy akcja zostala wykonana,
+- timestamp.
 
-    Note over DB: Niedziela: porównaj decisions vs observations<br/>→ raport precision/recall
-```
+### `observations`
 
-## Komponenty
+To material pomocniczy:
 
-| Komponent | Technologia | Odpowiedzialność |
-|-----------|-------------|------------------|
-| **Cron fetch** | Python Vercel Function | Pobranie nowych maili z Gmail → Neon |
-| **Cron classify** | Python Vercel Function | Klasyfikacja + (opc.) archiwizacja |
-| **Cron purge** | Python Vercel Function | Trwałe kasowanie po 7 dniach |
-| **Cron observe** | Python Vercel Function | (Shadow mode) zapisanie final_state |
-| **Web UI** | Next.js App Router | Poranny przegląd + potwierdzenia |
-| **Classifier** | scikit-learn | Szybka klasyfikacja na cechach |
-| **LLM adapter** | Anthropic SDK + AI Gateway | Haiku 4.5 dla niepewnych |
-| **Gmail wrapper** | google-api-python-client | fetch, archive, label, delete |
-| **DB** | Neon Postgres | raw_emails, decisions, observations, feedback, audit_log |
+- sluzy do diagnostyki,
+- moze sluzyc do porownan model vs rzeczywistosc,
+- nie zastapi jawnego feedbacku uzytkownika.
 
-## Feature flagi (Vercel Edge Config)
+### `feedback`
 
-| Flag | Default | Opis |
-|------|---------|------|
-| `SHADOW_MODE` | `true` | Model tylko obserwuje, żadnych akcji |
-| `AUTO_DELETE` | `false` | Auto-kasowanie bez potwierdzenia |
-| `LLM_ENABLED` | `true` | Użyj Haiku dla niepewnych |
-| `EMERGENCY_STOP` | `false` | Kill switch — cron exit early |
-| `DRY_RUN` | `false` | Loguj decyzje ale nie wykonuj akcji |
+To jest tabela z najsilniejszym sygnalem. Powinna zawierac tylko:
 
-## Model versioning
+- `user_restore -> keep`
+- `user_confirm -> spam`
+- reczne bootstrapowe etykiety, o ile sa jawnie dopuszczone do treningu
 
-Każda decyzja zapisuje `model_version` (np. `v2025-04-14_gbm_v1`). Modele ML w Vercel Blob: `models/{version}.joblib`. Retrening tworzy nową wersję, eval harness porównuje; promocja dopiero po ≥ baseline.
+Automatyczny cron nie powinien wpisywac do `feedback` tylko dlatego, ze sam cos przeniosl do Trash.
+
+### `audit_log`
+
+To dziennik dzialan systemu:
+
+- auto-trash,
+- restore wykonany przez API,
+- ewentualny future purge.
+
+## Review semantics
+
+### `Restore`
+
+- Gmail mutation: tak
+- efekt: `TRASH -> INBOX`
+- zapis do `feedback`: tak
+- znaczenie: AI sie pomylila
+
+### `Confirm`
+
+- Gmail mutation: nie
+- efekt: mail zostaje w Trash
+- zapis do `feedback`: tak
+- znaczenie: AI miala racje
+
+## Deployment contract
+
+Jeden Vercel project powinien byc zrootowany w `apps/web`.
+
+To oznacza:
+
+- Next.js UI i review API sa wdrazane z `apps/web`
+- Python cron functions sa wdrazane z `apps/web/api`
+- nie utrzymujemy rownolegle `apps/api` jako drugiej kanonicznej sciezki
+
+## Legacy debt do zamkniecia
+
+- usunac zdublowane reguly w `apps/web/api/_lib` i `apps/api/_lib`
+- usunac aktywna zaleznosc od `apps/api`
+- przestawic review na `decisions` zamiast na historyczne `feedback`
+- przestac traktowac `TRASH` jako rownowaznik `spam`
