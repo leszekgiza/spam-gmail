@@ -37,6 +37,9 @@ KEEP_DOMAIN_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"notifications@vercel\.com$", re.I), "vercel_ops"),
     (re.compile(r"(^|\.)adwokatwolkiewicz\.pl$", re.I), "legal_kancelaria"),
     (re.compile(r"(^|\.)startedu\.pl$", re.I), "family_school"),
+    (re.compile(r"(^|\.)eduindex\.pl$", re.I), "family_school_eduindex"),
+    (re.compile(r"(^|\.)biznesradar\.pl$", re.I), "investing_biznesradar"),
+    (re.compile(r"(^|\.)hycom\.pl$", re.I), "company_hycom"),
     (re.compile(r"(^|\.)zus\.pl$", re.I), "gov_zus"),
     (re.compile(r"(^|\.)us\.gov\.pl$", re.I), "gov_us"),
     (re.compile(r"(^|\.)epuap\.gov\.pl$", re.I), "gov_epuap"),
@@ -59,6 +62,7 @@ KEEP_SUBJECT_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"\bzmiana\s+regulaminu|aktualizuj.*dokumenty", re.I), "kw_tos_change"),
     (re.compile(r"\bPIT\s+(roczn|11|37|36|28)", re.I), "kw_pit_tax"),
     (re.compile(r"\bg[łl]osowani|\bkarta\s+do\s+g[łl]osowania", re.I), "kw_voting"),
+    (re.compile(r"\b(NWZA|NWZ|WZA|ZWZA)\b|\bwalne\s+zgromadzenie|\bzgromadzenie\s+akcjonariusz|\bakcjonariusz", re.I), "kw_shareholders_meeting"),
     (re.compile(r"\bZUS\b", re.I), "kw_zus"),
     (re.compile(r"\b(pismo|decyzj|wezwani|zawiadomieni)\b.*\b(urz[ąa]d|s[ąa]d|ZUS|skarbowy)", re.I), "kw_gov_official"),
 ]
