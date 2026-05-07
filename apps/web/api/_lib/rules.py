@@ -49,6 +49,9 @@ KEEP_DOMAIN_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"(^|\.)epuap\.gov\.pl$", re.I), "gov_epuap"),
     (re.compile(r"(^|\.)podatki\.gov\.pl$", re.I), "gov_podatki"),
     (re.compile(r"(^|\.)biznes\.gov\.pl$", re.I), "gov_biznes"),
+    (re.compile(r"(^|\.)google\.com$", re.I), "google_official"),
+    (re.compile(r"search-console-noreply@google\.com$", re.I), "google_search_console"),
+    (re.compile(r"(^|\.)googlewebmastercentral\.com$", re.I), "google_webmaster"),
 ]
 
 KEEP_SUBJECT_PATTERNS: list[tuple[re.Pattern[str], str]] = [
@@ -69,6 +72,7 @@ KEEP_SUBJECT_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"\b(NWZA|NWZ|WZA|ZWZA)\b|\bwalne\s+zgromadzenie|\bzgromadzenie\s+akcjonariusz|\bakcjonariusz", re.I), "kw_shareholders_meeting"),
     (re.compile(r"\bZUS\b", re.I), "kw_zus"),
     (re.compile(r"\b(pismo|decyzj|wezwani|zawiadomieni)\b.*\b(urz[ąa]d|s[ąa]d|ZUS|skarbowy)", re.I), "kw_gov_official"),
+    (re.compile(r"search\s+console|indeksowani|noindex|sitemap", re.I), "kw_search_console"),
 ]
 
 # Sender-from patterns (for senders like noreply@business-updates.facebook.com
