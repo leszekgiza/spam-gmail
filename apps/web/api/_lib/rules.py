@@ -52,6 +52,9 @@ KEEP_DOMAIN_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"(^|\.)google\.com$", re.I), "google_official"),
     (re.compile(r"search-console-noreply@google\.com$", re.I), "google_search_console"),
     (re.compile(r"(^|\.)googlewebmastercentral\.com$", re.I), "google_webmaster"),
+    (re.compile(r"jskrzypkowski@outlook\.com$", re.I), "personal_skrzypkowski"),
+    (re.compile(r"warsawainews@substack\.com$", re.I), "newsletter_warsawai"),
+    (re.compile(r"(^|\.)moznainaczej\.edu\.pl$", re.I), "education_unconference"),
 ]
 
 KEEP_SUBJECT_PATTERNS: list[tuple[re.Pattern[str], str]] = [
