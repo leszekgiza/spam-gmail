@@ -55,6 +55,7 @@ KEEP_DOMAIN_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"jskrzypkowski@outlook\.com$", re.I), "personal_skrzypkowski"),
     (re.compile(r"warsawainews@substack\.com$", re.I), "newsletter_warsawai"),
     (re.compile(r"(^|\.)moznainaczej\.edu\.pl$", re.I), "education_unconference"),
+    (re.compile(r"(^|\.)malawielkafirma\.pl$", re.I), "newsletter_marek_jankowski"),
 ]
 
 KEEP_SUBJECT_PATTERNS: list[tuple[re.Pattern[str], str]] = [
@@ -107,14 +108,19 @@ def apply_rules(
     domain = (sender_domain or "").strip().lower()
     subj = subject or ""
 
+    # Wyciągnij sam adres z "Name" <addr@x> dla regexów z $-anchorem
+    sender_addr = sender_full
+    if "<" in sender_full and ">" in sender_full:
+        sender_addr = sender_full.split("<", 1)[1].split(">", 1)[0].strip()
+
     # KEEP combo (sender+subject)
     for sender_pat, subj_pat, rid in KEEP_SENDER_SUBJECT_COMBO:
-        if sender_pat.search(sender_full) and subj_pat.search(subj):
+        if (sender_pat.search(sender_full) or sender_pat.search(sender_addr)) and subj_pat.search(subj):
             return RuleHit("keep", rid, f"sender+subject match: {rid}")
 
     # KEEP by domain
     for pat, rid in KEEP_DOMAIN_PATTERNS:
-        if pat.search(domain) or pat.search(sender_full):
+        if pat.search(domain) or pat.search(sender_addr) or pat.search(sender_full):
             return RuleHit("keep", rid, f"keep-domain: {rid}")
 
     # KEEP by subject
