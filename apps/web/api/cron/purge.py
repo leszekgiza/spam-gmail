@@ -38,7 +38,8 @@ from _lib.gmail_client import (  # noqa: E402
 from _lib.db import connect  # noqa: E402
 from _lib.scorer import score_email  # noqa: E402
 
-ML_SPAM_THRESHOLD = 0.85  # Tylko p > 0.85 → auto-delete. Reszta zostaje.
+ML_SPAM_THRESHOLD = 0.80  # p >= 0.80 → auto-delete (obniżone z 0.85 2026-06-06,
+# żeby łapać szarą strefę newsletterów typu p=0.83). Reszta zostaje.
 
 
 def _ensure_raw_email(cur, meta) -> None:

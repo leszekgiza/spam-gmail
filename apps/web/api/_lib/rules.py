@@ -26,7 +26,8 @@ class RuleHit:
 # --- KEEP: oficjalne/transakcyjne — NIGDY auto-delete ---
 
 KEEP_DOMAIN_PATTERNS: list[tuple[re.Pattern[str], str]] = [
-    (re.compile(r"(^|\.)mbank\.pl$", re.I), "bank_mbank"),
+    # UWAGA: mBank NIE jest tu — kasujemy jego rutynę (decyzja Leszka 2026-06-06),
+    # a maile o bezpieczeństwie chroni osobna gałąź mBank w apply_rules.
     (re.compile(r"(^|\.)santander\.", re.I), "bank_santander"),
     (re.compile(r"(^|\.)pkobp\.pl$", re.I), "bank_pko"),
     (re.compile(r"(^|\.)ingbank\.pl$", re.I), "bank_ing"),
@@ -52,8 +53,8 @@ KEEP_DOMAIN_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"(^|\.)podatki\.gov\.pl$", re.I), "gov_podatki"),
     (re.compile(r"(^|\.)biznes\.gov\.pl$", re.I), "gov_biznes"),
     (re.compile(r"(^|\.)google\.com$", re.I), "google_official"),
-    (re.compile(r"search-console-noreply@google\.com$", re.I), "google_search_console"),
-    (re.compile(r"(^|\.)googlewebmastercentral\.com$", re.I), "google_webmaster"),
+    # google_search_console / google_webmaster usunięte — GSC kasujemy (decyzja Leszka
+    # 2026-06-06). Maile bezpieczeństwa Google (logowanie) nadal chroni google_official.
     (re.compile(r"jskrzypkowski@outlook\.com$", re.I), "personal_skrzypkowski"),
     (re.compile(r"warsawainews@substack\.com$", re.I), "newsletter_warsawai"),
     (re.compile(r"(^|\.)moznainaczej\.edu\.pl$", re.I), "education_unconference"),
@@ -81,15 +82,52 @@ KEEP_SUBJECT_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"search\s+console|indeksowani|noindex|sitemap", re.I), "kw_search_console"),
 ]
 
-# Sender-from patterns (for senders like noreply@business-updates.facebook.com
-# gdzie subject może nie mieć słowa 'faktura' ale treść to rozliczenie reklam)
-KEEP_SENDER_SUBJECT_COMBO: list[tuple[re.Pattern[str], re.Pattern[str], str]] = [
-    (re.compile(r"business-updates\.facebook\.com$", re.I),
-     re.compile(r"potwierdzenie\s+p[łl]atno|transakcj", re.I),
-     "meta_ads_billing"),
+# Sender+subject KEEP (pusta lista — meta_ads_billing usunięty 2026-06-06,
+# Meta rozliczenia reklam idą teraz do kasacji). Struktura zostaje na przyszłość.
+KEEP_SENDER_SUBJECT_COMBO: list[tuple[re.Pattern[str], re.Pattern[str], str]] = []
+
+# --- mBank: kasujemy rutynę, ALE chronimy maile o bezpieczeństwie konta ---
+# Decyzja Leszka 2026-06-06: powiadomienia/wykazy/mForex = szum → kasuj.
+# Siatka ochronna: logowanie, blokada, podejrzana transakcja, wyłudzenie, kody → KEEP.
+BANK_SECURITY_DOMAINS: list[tuple[re.Pattern[str], str]] = [
+    (re.compile(r"(^|\.)mbank\.pl$", re.I), "bank_mbank"),
+]
+SECURITY_KEEP_PAT = re.compile(
+    r"bezpiecze[ńn]stw"
+    r"|nowe\s+logowani|logowani\w*\s+do|zalogowa|zaloguj"
+    r"|zablokowa|blokad[aey]|odblokuj"
+    r"|podejrzan"
+    r"|nieautoryzowan|autoryzacj"
+    r"|wy[łl]udzen|oszust|phishing|skradzion|kradzie[żz]|w[łl]aman"
+    r"|kod\s+(weryfikacyjn|jednorazow|autoryzacyjn|sms|do)|jednorazowe\s+has[łl]o"
+    r"|zmiana\s+has[łl]a|reset\w*\s+has[łl]a|odzyskiwani\w*\s+has[łl]a"
+    r"|security\s+(alert|incident|breach|warning)",
+    re.I,
+)
+
+# --- HARD DELETABLE: znane śmieci kasowane PRZED regułami KEEP ---
+# Te wzorce biją KEEP od słów-kluczy ("zamówienie", "indeksowanie") i KEEP-domenę,
+# bo promo-nadawcy nadużywają transakcyjnego słownictwa (Temu "zamówienie").
+HARD_DELETABLE_PATTERNS: list[tuple[re.Pattern[str], str]] = [
+    # Temu — wszystkie domeny (orders.temu.com, eu.temuemail.com, temu.com)
+    (re.compile(r"(^|\.)temu\.com$", re.I), "promo_temu"),
+    (re.compile(r"(^|\.)temuemail\.com$", re.I), "promo_temu"),
+    # Meta — rozliczenia reklam (decyzja 2026-06-06: szum, historia jest w Ads Managerze)
+    (re.compile(r"(^|\.)business-updates\.facebook\.com$", re.I), "promo_meta_ads_billing"),
+    # Google Search Console — powiadomienia o własnej stronie (są w dashboardzie GSC)
+    (re.compile(r"sc-noreply@google\.com$", re.I), "promo_gsc"),
+    (re.compile(r"search-console-noreply@google\.com$", re.I), "promo_gsc"),
+    (re.compile(r"(^|\.)googlewebmastercentral\.com$", re.I), "promo_gsc_webmaster"),
+    # Sklepy / marketing / job-alerty
+    (re.compile(r"(^|\.)news\.yves-rocher\.pl$", re.I), "promo_yves_rocher"),
+    (re.compile(r"(^|\.)mail\.leroymerlin\.pl$", re.I), "promo_leroymerlin"),
+    (re.compile(r"(^|\.)teatrcapitol\.pl$", re.I), "promo_teatr_capitol"),
+    (re.compile(r"(^|\.)email\.microsoft\.com$", re.I), "promo_microsoft_marketing"),
+    (re.compile(r"jobalerts-noreply@linkedin\.com$", re.I), "promo_linkedin_jobs"),
+    (re.compile(r"(^|\.)rankmath\.com$", re.I), "promo_rankmath"),
 ]
 
-# --- DELETABLE: twardy spam ---
+# --- DELETABLE: twardy spam (legacy, sprawdzane po regułach KEEP) ---
 
 DELETABLE_DOMAIN_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"(^|\.)temuemail\.com$", re.I), "promo_temu"),
@@ -115,22 +153,37 @@ def apply_rules(
     if "<" in sender_full and ">" in sender_full:
         sender_addr = sender_full.split("<", 1)[1].split(">", 1)[0].strip()
 
-    # KEEP combo (sender+subject)
+    def _match(pat: re.Pattern[str]) -> bool:
+        return bool(pat.search(domain) or pat.search(sender_addr) or pat.search(sender_full))
+
+    # 1) mBank: rutynę kasujemy, bezpieczeństwo zostaje (siatka ochronna)
+    for pat, rid in BANK_SECURITY_DOMAINS:
+        if _match(pat):
+            if SECURITY_KEEP_PAT.search(subj):
+                return RuleHit("keep", f"{rid}_security", f"bank-security keep: {rid}")
+            return RuleHit("deletable", f"{rid}_routine", f"bank-routine delete: {rid}")
+
+    # 2) HARD DELETABLE — znane śmieci, biją KEEP od słów-kluczy i KEEP-domenę
+    for pat, rid in HARD_DELETABLE_PATTERNS:
+        if _match(pat):
+            return RuleHit("deletable", rid, f"hard-delete: {rid}")
+
+    # 3) KEEP combo (sender+subject)
     for sender_pat, subj_pat, rid in KEEP_SENDER_SUBJECT_COMBO:
         if (sender_pat.search(sender_full) or sender_pat.search(sender_addr)) and subj_pat.search(subj):
             return RuleHit("keep", rid, f"sender+subject match: {rid}")
 
-    # KEEP by domain
+    # 4) KEEP by domain
     for pat, rid in KEEP_DOMAIN_PATTERNS:
-        if pat.search(domain) or pat.search(sender_addr) or pat.search(sender_full):
+        if _match(pat):
             return RuleHit("keep", rid, f"keep-domain: {rid}")
 
-    # KEEP by subject
+    # 5) KEEP by subject
     for pat, rid in KEEP_SUBJECT_PATTERNS:
         if pat.search(subj):
             return RuleHit("keep", rid, f"keep-subject: {rid}")
 
-    # DELETABLE domains
+    # 6) DELETABLE domains (legacy)
     for pat, rid in DELETABLE_DOMAIN_PATTERNS:
         if pat.search(domain):
             return RuleHit("deletable", rid, f"delete-domain: {rid}")
