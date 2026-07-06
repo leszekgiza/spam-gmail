@@ -43,6 +43,7 @@ KEEP_DOMAIN_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"(^|\.)dobraedukacja\.edu\.pl$", re.I), "family_school_sde"),
     (re.compile(r"(^|\.)biznesradar\.pl$", re.I), "investing_biznesradar"),
     (re.compile(r"(^|\.)hycom\.pl$", re.I), "company_hycom"),
+    (re.compile(r"(^|\.)andtech\.pl$", re.I), "company_andtech"),
     (re.compile(r"(^|\.)autenti\.com$", re.I), "esign_autenti"),
     (re.compile(r"(^|\.)mail\.autenti\.com$", re.I), "esign_autenti_mail"),
     (re.compile(r"(^|\.)docusign\.(net|com)$", re.I), "esign_docusign"),

@@ -39,6 +39,7 @@ CASES: list[tuple[str, str, str, str]] = [
     ("Janusz Skrzypkowski <jskrzypkowski@outlook.com>", "outlook.com", "RE: ZWZA 15.05.2026", "keep"),
     ("Marii-Liisi Makara via Docusign <dse@eumail.docusign.net>", "eumail.docusign.net",
      "Complete with Docusign: Umowa", "keep"),
+    ("And Tech Andrzej Skłudzki <biuro@andtech.pl>", "andtech.pl", "Oferta wspolpracy", "keep"),
     # --- Regresja: pełny header "Name" <addr> musi matchować $-anchor reguły ---
     ('"Warsaw.AI News Team" <warsawainews@substack.com>', "substack.com", "Warsaw.AI News", "keep"),
 ]
