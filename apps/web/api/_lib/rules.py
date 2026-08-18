@@ -37,6 +37,11 @@ KEEP_DOMAIN_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"security@vercel\.com$", re.I), "vercel_security"),
     (re.compile(r"notifications@vercel\.com$", re.I), "vercel_ops"),
     (re.compile(r"(^|\.)adwokatwolkiewicz\.pl$", re.I), "legal_kancelaria"),
+    # Ubezpieczyciele — polisy/oferty od brokerki (Ola Zaborowska) przychodza
+    # bezposrednio z TU. Silnik skasowal polise Warty 2026-08-14 -> KEEP na domeny.
+    (re.compile(r"(^|\.)warta\.pl$", re.I), "insurance_warta"),
+    (re.compile(r"(^|\.)uniqa\.pl$", re.I), "insurance_uniqa"),
+    (re.compile(r"(^|\.)link4\.pl$", re.I), "insurance_link4"),
     (re.compile(r"(^|\.)startedu\.pl$", re.I), "family_school"),
     (re.compile(r"(^|\.)eduindex\.pl$", re.I), "family_school_eduindex"),
     (re.compile(r"(^|\.)adejablonna\.pl$", re.I), "family_school_ade"),
@@ -83,6 +88,7 @@ KEEP_SUBJECT_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"\bg[łl]osowani|\bkarta\s+do\s+g[łl]osowania", re.I), "kw_voting"),
     (re.compile(r"\b(NWZA|NWZ|WZA|ZWZA)\b|\bwalne\s+zgromadzenie|\bzgromadzenie\s+akcjonariusz|\bakcjonariusz", re.I), "kw_shareholders_meeting"),
     (re.compile(r"\bZUS\b", re.I), "kw_zus"),
+    (re.compile(r"\bpolis[aeęy]|\bubezpieczeni\w*\s+(domu|mieszkan|nieruchomo)", re.I), "kw_insurance_policy"),
     (re.compile(r"\b(pismo|decyzj|wezwani|zawiadomieni)\b.*\b(urz[ąa]d|s[ąa]d|ZUS|skarbowy)", re.I), "kw_gov_official"),
     (re.compile(r"search\s+console|indeksowani|noindex|sitemap", re.I), "kw_search_console"),
 ]

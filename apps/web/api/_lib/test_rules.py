@@ -44,6 +44,14 @@ CASES: list[tuple[str, str, str, str]] = [
      "Re: spotkanie", "keep"),
     # ...ale reszta poczta.onet.pl NIE jest whitelistowana (freemail)
     ("Ktos Inny <ktos.inny@poczta.onet.pl>", "poczta.onet.pl", "Promocja tygodnia", "none"),
+    # --- Regresja 2026-08-18: silnik skasowal polise Warty i RODO Uniqa ---
+    ("Warta <TwojeUbezpieczenie@warta.pl>", "warta.pl",
+     "Polisa - potwierdzenie zawarcia umowy ubezpieczenia", "keep"),
+    ("Warta <TwojeUbezpieczenie@warta.pl>", "warta.pl",
+     "Oferta ubezpieczenia - Zatwierdz do 16.08.2026", "keep"),
+    ("UNIQA <propozycja@uniqa.pl>", "uniqa.pl",
+     "Informacje dotyczace przetwarzania danych osobowych", "keep"),
+    ("Link4 <polisa_mieszkanie@link4.pl>", "link4.pl", "Polisa mieszkaniowa: M29827089004", "keep"),
     # --- Regresja: pełny header "Name" <addr> musi matchować $-anchor reguły ---
     ('"Warsaw.AI News Team" <warsawainews@substack.com>', "substack.com", "Warsaw.AI News", "keep"),
 ]
