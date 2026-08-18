@@ -40,6 +40,10 @@ CASES: list[tuple[str, str, str, str]] = [
     ("Marii-Liisi Makara via Docusign <dse@eumail.docusign.net>", "eumail.docusign.net",
      "Complete with Docusign: Umowa", "keep"),
     ("And Tech Andrzej Skłudzki <biuro@andtech.pl>", "andtech.pl", "Oferta wspolpracy", "keep"),
+    ("Aleksandra Zaborowska <aleksandra.zaborowska@poczta.onet.pl>", "poczta.onet.pl",
+     "Re: spotkanie", "keep"),
+    # ...ale reszta poczta.onet.pl NIE jest whitelistowana (freemail)
+    ("Ktos Inny <ktos.inny@poczta.onet.pl>", "poczta.onet.pl", "Promocja tygodnia", "none"),
     # --- Regresja: pełny header "Name" <addr> musi matchować $-anchor reguły ---
     ('"Warsaw.AI News Team" <warsawainews@substack.com>', "substack.com", "Warsaw.AI News", "keep"),
 ]

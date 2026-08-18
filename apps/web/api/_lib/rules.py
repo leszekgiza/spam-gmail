@@ -58,6 +58,9 @@ KEEP_DOMAIN_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     # google_search_console / google_webmaster usunięte — GSC kasujemy (decyzja Leszka
     # 2026-06-06). Maile bezpieczeństwa Google (logowanie) nadal chroni google_official.
     (re.compile(r"jskrzypkowski@outlook\.com$", re.I), "personal_skrzypkowski"),
+    # poczta.onet.pl to freemail — whitelistujemy TYLKO ten konkretny adres,
+    # nigdy całą domenę.
+    (re.compile(r"aleksandra\.zaborowska@poczta\.onet\.pl$", re.I), "personal_zaborowska"),
     (re.compile(r"warsawainews@substack\.com$", re.I), "newsletter_warsawai"),
     (re.compile(r"(^|\.)moznainaczej\.edu\.pl$", re.I), "education_unconference"),
     (re.compile(r"(^|\.)malawielkafirma\.pl$", re.I), "newsletter_marek_jankowski"),
