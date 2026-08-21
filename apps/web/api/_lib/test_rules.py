@@ -52,6 +52,22 @@ CASES: list[tuple[str, str, str, str]] = [
     ("UNIQA <propozycja@uniqa.pl>", "uniqa.pl",
      "Informacje dotyczace przetwarzania danych osobowych", "keep"),
     ("Link4 <polisa_mieszkanie@link4.pl>", "link4.pl", "Polisa mieszkaniowa: M29827089004", "keep"),
+    # --- Regresja 2026-08-21: silnik skasowal dokumentacje wyjazdu do Rzymu ---
+    ("Wizz Air Customer Service <notifications@notifications.wizzair.com>", "notifications.wizzair.com",
+     "Important Information about your Wizz Air flight! (ER6J8X)", "keep"),
+    ("\"travel document\" <noreply@doc.mail.amadeus.com>", "doc.mail.amadeus.com",
+     "GIZA/LESZEK MR 22AUG2026", "keep"),
+    ("SAN GIOVANNI APARTMENT 80 MQ za posrednictwem Booking.com <noreply@booking.com>", "booking.com",
+     "Masz wiadomosc od obiektu SAN GIOVANNI APARTMENT 80 MQ", "keep"),
+    ("LOT Polish Airlines <no-reply@preflight.lot.com>", "preflight.lot.com",
+     "It's time to check-in. Check reservation", "keep"),
+    ("Wizz Air <offers@noreply.wizznews.com>", "noreply.wizznews.com", "Czas na odprawe!", "keep"),
+    ("Spaceship <receipts@spaceship.com>", "spaceship.com",
+     "Spaceship order summary #9ff8b79b", "keep"),
+    ("SolarUp <kontakt@solarup.pl>", "solarup.pl", "Fotowoltaika - porownanie wariantow", "keep"),
+    # ...marketing przewoznikow NIE jest whitelistowany
+    ("Wizz Air <travel@travel.wizznews.com>", "travel.wizznews.com", "Tego lata lataj juz od 129 zl", "none"),
+    ("Miles & More <no-reply@milesandmore.lot.com>", "milesandmore.lot.com", "najMILszy poniedzialek", "none"),
     # --- Regresja: pełny header "Name" <addr> musi matchować $-anchor reguły ---
     ('"Warsaw.AI News Team" <warsawainews@substack.com>', "substack.com", "Warsaw.AI News", "keep"),
 ]

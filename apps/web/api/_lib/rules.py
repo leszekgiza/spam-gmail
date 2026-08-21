@@ -42,6 +42,18 @@ KEEP_DOMAIN_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"(^|\.)warta\.pl$", re.I), "insurance_warta"),
     (re.compile(r"(^|\.)uniqa\.pl$", re.I), "insurance_uniqa"),
     (re.compile(r"(^|\.)link4\.pl$", re.I), "insurance_link4"),
+    # Podroze i rezerwacje — bilety, odprawy, wiadomosci od obiektow. Silnik
+    # skasowal cala dokumentacje wyjazdu do Rzymu 2026-08-20 (lot 22.08!).
+    # Marketing Wizz/LOT siedzi na innych domenach (wizznews, milesandmore)
+    # i celowo NIE jest tu whitelistowany.
+    (re.compile(r"(^|\.)booking\.com$", re.I), "travel_booking"),
+    (re.compile(r"(^|\.)wizzair\.com$", re.I), "travel_wizzair"),
+    (re.compile(r"(^|\.)noreply\.wizznews\.com$", re.I), "travel_wizzair_ops"),
+    (re.compile(r"(^|\.)preflight\.lot\.com$", re.I), "travel_lot_checkin"),
+    (re.compile(r"(^|\.)amadeus\.com$", re.I), "travel_amadeus_docs"),
+    # Dostawcy/uslugi z ktorymi Leszek realnie koresponduje
+    (re.compile(r"(^|\.)spaceship\.com$", re.I), "registrar_spaceship"),
+    (re.compile(r"(^|\.)solarup\.pl$", re.I), "company_solarup"),
     (re.compile(r"(^|\.)startedu\.pl$", re.I), "family_school"),
     (re.compile(r"(^|\.)eduindex\.pl$", re.I), "family_school_eduindex"),
     (re.compile(r"(^|\.)adejablonna\.pl$", re.I), "family_school_ade"),
@@ -89,6 +101,9 @@ KEEP_SUBJECT_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"\b(NWZA|NWZ|WZA|ZWZA)\b|\bwalne\s+zgromadzenie|\bzgromadzenie\s+akcjonariusz|\bakcjonariusz", re.I), "kw_shareholders_meeting"),
     (re.compile(r"\bZUS\b", re.I), "kw_zus"),
     (re.compile(r"\bpolis[aeęy]|\bubezpieczeni\w*\s+(domu|mieszkan|nieruchomo)", re.I), "kw_insurance_policy"),
+    (re.compile(r"\brezerwacj|\breservation\b", re.I), "kw_reservation"),
+    (re.compile(r"\bodpraw|\bcheck.?in\b", re.I), "kw_flight_checkin"),
+    (re.compile(r"karta\s+pok[łl]adow|boarding\s+pass|e-?ticket|bilet\s+elektroniczn", re.I), "kw_boarding_pass"),
     (re.compile(r"\b(pismo|decyzj|wezwani|zawiadomieni)\b.*\b(urz[ąa]d|s[ąa]d|ZUS|skarbowy)", re.I), "kw_gov_official"),
     (re.compile(r"search\s+console|indeksowani|noindex|sitemap", re.I), "kw_search_console"),
 ]
