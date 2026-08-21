@@ -68,6 +68,14 @@ CASES: list[tuple[str, str, str, str]] = [
     # ...marketing przewoznikow NIE jest whitelistowany
     ("Wizz Air <travel@travel.wizznews.com>", "travel.wizznews.com", "Tego lata lataj juz od 129 zl", "none"),
     ("Miles & More <no-reply@milesandmore.lot.com>", "milesandmore.lot.com", "najMILszy poniedzialek", "none"),
+    # --- Audyt bazy 2026-08-21: ML p0.98 kasowal dokumenty urzedowe/medyczne ---
+    ("Profil Zaufany <powiadomienia@pz.gov.pl>", "pz.gov.pl", "Dokument zostal podpisany", "keep"),
+    ("Profil Zaufany <powiadomienia@pz.gov.pl>", "pz.gov.pl",
+     "Twoje haslo w profilu zaufanym zostalo zmienione", "keep"),
+    ("mojeDR <noreply@noreply.mydr.pl>", "noreply.mydr.pl", "Link do platnosci za uslugi medyczne", "keep"),
+    ("Stoen Operator <kontakt@stoen.pl>", "stoen.pl", "OWE001349955 RE: Wniosek o potwierdzenie", "keep"),
+    ("Anthropic <noreply@mail.anthropic.com>", "mail.anthropic.com",
+     "Your secure link to Claude.ai is here", "keep"),
     # --- Regresja: pełny header "Name" <addr> musi matchować $-anchor reguły ---
     ('"Warsaw.AI News Team" <warsawainews@substack.com>', "substack.com", "Warsaw.AI News", "keep"),
 ]

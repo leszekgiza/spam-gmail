@@ -71,6 +71,13 @@ KEEP_DOMAIN_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"(^|\.)epuap\.gov\.pl$", re.I), "gov_epuap"),
     (re.compile(r"(^|\.)podatki\.gov\.pl$", re.I), "gov_podatki"),
     (re.compile(r"(^|\.)biznes\.gov\.pl$", re.I), "gov_biznes"),
+    # Profil Zaufany — podpisy dokumentow i zmiany hasla. Silnik skasowal
+    # 6 takich maili 2026-08-15..19 (audyt bazy 2026-08-21).
+    (re.compile(r"(^|\.)pz\.gov\.pl$", re.I), "gov_profil_zaufany"),
+    # Medycyna, energetyka, logowanie do narzedzi pracy
+    (re.compile(r"(^|\.)mydr\.pl$", re.I), "medical_mydr"),
+    (re.compile(r"(^|\.)stoen\.pl$", re.I), "utility_stoen"),
+    (re.compile(r"(^|\.)mail\.anthropic\.com$", re.I), "login_anthropic"),
     (re.compile(r"(^|\.)google\.com$", re.I), "google_official"),
     # google_search_console / google_webmaster usunięte — GSC kasujemy (decyzja Leszka
     # 2026-06-06). Maile bezpieczeństwa Google (logowanie) nadal chroni google_official.
@@ -104,6 +111,8 @@ KEEP_SUBJECT_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"\brezerwacj|\breservation\b", re.I), "kw_reservation"),
     (re.compile(r"\bodpraw|\bcheck.?in\b", re.I), "kw_flight_checkin"),
     (re.compile(r"karta\s+pok[łl]adow|boarding\s+pass|e-?ticket|bilet\s+elektroniczn", re.I), "kw_boarding_pass"),
+    (re.compile(r"dokument\s+zosta[łl]\s+podpisan|profil(u)?\s+zaufany", re.I), "kw_signed_document"),
+    (re.compile(r"secure\s+link|magic\s+link|link\s+do\s+p[łl]atno", re.I), "kw_login_or_payment_link"),
     (re.compile(r"\b(pismo|decyzj|wezwani|zawiadomieni)\b.*\b(urz[ąa]d|s[ąa]d|ZUS|skarbowy)", re.I), "kw_gov_official"),
     (re.compile(r"search\s+console|indeksowani|noindex|sitemap", re.I), "kw_search_console"),
 ]
