@@ -8,6 +8,7 @@ from __future__ import annotations
 import os
 import re
 from dataclasses import dataclass, field
+from email.utils import parseaddr
 from datetime import datetime, timezone
 from typing import Any, Iterable
 
@@ -143,10 +144,16 @@ _AUTOMATED_LOCAL = re.compile(
 )
 
 
-def _sender_addr(sender: str) -> str:
-    if "<" in sender and ">" in sender:
-        sender = sender.split("<", 1)[1].split(">", 1)[0]
-    return sender.strip().lower()
+# Scisly addr-spec — adres trafia do zapytania Gmaila, wiec nie wpuszczamy spacji,
+# cudzyslowow, nawiasow ani operatorow (np. "a@b.pl OR in:inbox").
+_STRICT_ADDR = re.compile(r"^[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}$")
+
+
+def _sender_addr(sender: str) -> str | None:
+    """Adres z naglowka From albo None, jesli nie wyglada jak prawdziwy adres."""
+    _, addr = parseaddr(sender or "")
+    addr = addr.strip().lower()
+    return addr if _STRICT_ADDR.match(addr) else None
 
 
 def _has_sent(service: Any, query: str) -> bool:
@@ -180,8 +187,11 @@ def has_correspondence(
     if meta.thread_id in sent_threads:
         return "thread"
     addr = _sender_addr(meta.sender)
-    if "@" not in addr or _AUTOMATED_LOCAL.match(addr.split("@", 1)[0]):
+    if addr is None or _AUTOMATED_LOCAL.match(addr.split("@", 1)[0]):
+        return None
+    # Domena adresu musi zgadzac sie z sender_domain z parsera metadanych.
+    if meta.sender_domain and addr.split("@", 1)[1] != meta.sender_domain.lower():
         return None
     if addr not in cache:
-        cache[addr] = _has_sent(service, f"in:sent to:{addr}")
+        cache[addr] = _has_sent(service, f'in:sent to:"{addr}"')
     return "address" if cache[addr] else None
