@@ -61,6 +61,13 @@ KEEP_DOMAIN_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"(^|\.)biznesradar\.pl$", re.I), "investing_biznesradar"),
     (re.compile(r"(^|\.)hycom\.pl$", re.I), "company_hycom"),
     (re.compile(r"(^|\.)andtech\.pl$", re.I), "company_andtech"),
+    (re.compile(r"(^|\.)kuchniavikinga\.pl$", re.I), "catering_kuchnia_vikinga"),
+    # Zakup samochodu (2026-10) — dealerzy, OTOMOTO (obserwowane/ogloszenia), OPENLANE.
+    # Marketing mail.otomoto.pl celowo pominiety.
+    (re.compile(r"^(updates\.)?otomoto\.pl$", re.I), "car_otomoto"),
+    (re.compile(r"(^|\.)openlane\.eu$", re.I), "car_openlane"),
+    (re.compile(r"(^|\.)(dealervolvo\.pl|volvo-dealer\.pl|nobilecarsvolvo\.pl)$", re.I), "car_volvo_dealer"),
+    (re.compile(r"(^|\.)(audiwroclaw\.pl|cichy-zasada\.pl)$", re.I), "car_dealer"),
     (re.compile(r"(^|\.)autenti\.com$", re.I), "esign_autenti"),
     (re.compile(r"(^|\.)mail\.autenti\.com$", re.I), "esign_autenti_mail"),
     (re.compile(r"(^|\.)docusign\.(net|com)$", re.I), "esign_docusign"),
@@ -115,6 +122,13 @@ KEEP_SUBJECT_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"secure\s+link|magic\s+link|link\s+do\s+p[łl]atno", re.I), "kw_login_or_payment_link"),
     (re.compile(r"\b(pismo|decyzj|wezwani|zawiadomieni)\b.*\b(urz[ąa]d|s[ąa]d|ZUS|skarbowy)", re.I), "kw_gov_official"),
     (re.compile(r"search\s+console|indeksowani|noindex|sitemap", re.I), "kw_search_console"),
+    # Klimatyzacja w domu + oferty/zapytania (2026-10: ML kasowal odpowiedzi instalatorow)
+    (re.compile(r"twoje\s+og[łl]oszenie", re.I), "kw_my_listing"),
+    (re.compile(r"klimatyzac|pomp\w*\s+ciep[łl]", re.I), "kw_home_hvac"),
+    (re.compile(r"zapytani\w*\s+(o\s+)?ofert|\boferta\s+nr\b", re.I), "kw_quote_request"),
+    (re.compile(r"\b(volvo|skoda|audi|bmw|toyota|mercedes|kia|hyundai|tesla|cupra|seat|vw|volkswagen)\b"
+                r".*\b(ofert|zapytani|jazd\w*\s+testow|leasing)|\b(ofert\w*|zapytani\w*)\b.*\b(volvo|skoda|audi"
+                r"|bmw|toyota|mercedes|kia|hyundai|tesla|cupra|seat|vw|volkswagen)\b", re.I), "kw_car_offer"),
 ]
 
 # Sender+subject KEEP (pusta lista — meta_ads_billing usunięty 2026-06-06,
@@ -168,7 +182,6 @@ DELETABLE_DOMAIN_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"(^|\.)temuemail\.com$", re.I), "promo_temu"),
     (re.compile(r"(^|\.)newsletter\.allegro\.pl$", re.I), "promo_allegro_newsletter"),
     (re.compile(r"(^|\.)info\.biedronka\.pl$", re.I), "promo_biedronka"),
-    (re.compile(r"(^|\.)updates\.otomoto\.pl$", re.I), "promo_otomoto"),
     (re.compile(r"(^|\.)mail\.beehiiv\.com$", re.I), "promo_beehiiv_newsletter"),
 ]
 

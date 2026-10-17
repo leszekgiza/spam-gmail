@@ -31,6 +31,8 @@ from _lib.rules import (  # noqa: E402
 )
 from _lib.gmail_client import (  # noqa: E402
     get_service,
+    has_correspondence,
+    sent_thread_ids,
     iter_metadata,
     list_message_ids,
     trash_messages,
@@ -127,8 +129,31 @@ def run_purge(dry_run: bool, days_window: int = 30) -> dict:
         else:
             kept_protected += 1
 
+    # Ochrona korespondencji — bije wszystko (reguly, ML, grace). Sprawdzamy
+    # tylko kandydatow do kasacji, zeby nie palic quota Gmail API na calej skrzynce.
+    corr_cache: dict[str, bool] = {}
+    sent_threads = sent_thread_ids(service)
+    kept_correspondence: list[dict] = []
+
+    def _not_correspondence(items: list[tuple]) -> list[tuple]:
+        out = []
+        for item in items:
+            meta = meta_map[item[0]]
+            why = has_correspondence(service, meta, sent_threads, corr_cache)
+            if why:
+                kept_correspondence.append({"why": why, "sender": meta.sender[:60], "subject": item[2]})
+            else:
+                out.append(item)
+        return out
+
+    to_trash_spam = _not_correspondence(to_trash_spam)
+    to_trash_grace = _not_correspondence(to_trash_grace)
+    to_trash_ml = _not_correspondence(to_trash_ml)
+
     result = {
         "scanned": len(ids),
+        "kept_correspondence": len(kept_correspondence),
+        "sample_kept_correspondence": kept_correspondence[:10],
         "deletable_rules": len(to_trash_spam),
         "deletable_ml": len(to_trash_ml),
         "grace_expired": len(to_trash_grace),

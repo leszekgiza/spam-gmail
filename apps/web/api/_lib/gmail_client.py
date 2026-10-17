@@ -6,6 +6,7 @@ Zwendorowane z packages/gmail/auth.py + packages/gmail/operations.py,
 from __future__ import annotations
 
 import os
+import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Iterable
@@ -128,3 +129,59 @@ def trash_messages(service: Any, message_ids: list[str]) -> None:
         except HttpError as e:
             if e.resp.status != 404:
                 raise
+
+
+# --- Ochrona korespondencji: jesli Leszek pisal do nadawcy, to nie spam ---
+# Decyzja 2026-10-17: odpowiedzi instalatorow klimatyzacji i dealerow aut lecialy
+# do kosza (ML p0.8-0.98), mimo ze to byly odpowiedzi na jego zapytania.
+
+# Adresy automatyczne — nawet jesli kiedys na nie odpisal (np. unsubscribe), to nie rozmowa.
+# Po domenie celowo NIE dopasowujemy: mail do kogos z allegro.pl/mbank.pl chronilby
+# wszystkie ich powiadomienia (sprawdzone na 30 dniach: 252 falszywe trafienia).
+_AUTOMATED_LOCAL = re.compile(
+    r"^(no-?reply|do-?not-?reply|notifications?|newsletters?|mailings?|marketing|news|updates?|powiadomienia|message)\b", re.I,
+)
+
+
+def _sender_addr(sender: str) -> str:
+    if "<" in sender and ">" in sender:
+        sender = sender.split("<", 1)[1].split(">", 1)[0]
+    return sender.strip().lower()
+
+
+def _has_sent(service: Any, query: str) -> bool:
+    resp = service.users().messages().list(userId="me", q=query, maxResults=1).execute()
+    return bool(resp.get("messages"))
+
+
+def sent_thread_ids(service: Any, days: int = 730) -> set[str]:
+    """Wątki, w których Leszek cokolwiek wysłał. messages.list zwraca threadId,
+    więc to ~N/500 zapytań zamiast threads.get per kandydat."""
+    threads: set[str] = set()
+    page_token: str | None = None
+    while True:
+        resp = service.users().messages().list(
+            userId="me", q=f"in:sent newer_than:{days}d", maxResults=500, pageToken=page_token,
+        ).execute()
+        threads.update(m["threadId"] for m in resp.get("messages", []))
+        page_token = resp.get("nextPageToken")
+        if not page_token:
+            return threads
+
+
+def has_correspondence(
+    service: Any, meta: EmailMeta, sent_threads: set[str], cache: dict[str, bool],
+) -> str | None:
+    """Zwraca powod ('thread'/'address') jesli byla korespondencja, inaczej None.
+
+    `sent_threads` z sent_thread_ids(); `cache` trzymamy na caly przebieg crona
+    — jedno zapytanie per adres nadawcy.
+    """
+    if meta.thread_id in sent_threads:
+        return "thread"
+    addr = _sender_addr(meta.sender)
+    if "@" not in addr or _AUTOMATED_LOCAL.match(addr.split("@", 1)[0]):
+        return None
+    if addr not in cache:
+        cache[addr] = _has_sent(service, f"in:sent to:{addr}")
+    return "address" if cache[addr] else None
